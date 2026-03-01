@@ -88,30 +88,65 @@
       margin-top: 4px;
     }
 
-    /* Model switcher */
-    #model-switcher {
+    /* Shape palette */
+    #shape-palette {
       padding: 16px 20px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    #model-switcher label {
+    #shape-palette label {
       font-size: 11px;
       color: #666;
       text-transform: uppercase;
       letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 10px;
     }
 
-    #model-switcher .model-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
+    .shape-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
     }
 
-    #model-name {
-      flex: 1;
-      font-size: 13px;
-      color: #e0e0e0;
+    .shape-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #ccc;
+      cursor: pointer;
+      padding: 8px 4px;
+      border-radius: 6px;
+      font-size: 11px;
+      text-align: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .shape-btn:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    .shape-btn.active {
+      background: rgba(99,102,241,0.2);
+      border-color: rgba(99,102,241,0.5);
+      color: #a5b4fc;
+    }
+
+    .btn-clear-all {
+      width: 100%;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #f87171;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      transition: background 0.15s;
+    }
+
+    .btn-clear-all:hover {
+      background: rgba(239,68,68,0.2);
     }
 
     .btn-icon {
@@ -371,13 +406,18 @@
       <p>Auto-discovers Cloudflare live inputs</p>
     </div>
 
-    <div id="model-switcher">
-      <label>3D Model</label>
-      <div class="model-controls">
-        <button class="btn-icon" id="model-prev">‹</button>
-        <span id="model-name">Box</span>
-        <button class="btn-icon" id="model-next">›</button>
+    <div id="shape-palette">
+      <label>Shape Palette</label>
+      <div class="shape-grid">
+        <button class="shape-btn active" data-shape="box">Box</button>
+        <button class="shape-btn" data-shape="sphere">Sphere</button>
+        <button class="shape-btn" data-shape="torus">Torus</button>
+        <button class="shape-btn" data-shape="cone">Cone</button>
+        <button class="shape-btn" data-shape="tower">Tower</button>
+        <button class="shape-btn" data-shape="molecule">Molecule</button>
+        <button class="shape-btn" data-shape="raspberry">Raspberry</button>
       </div>
+      <button class="btn-clear-all" id="clear-all">Clear All</button>
     </div>
 
     <div id="shader-controls">

@@ -1,22 +1,12 @@
 import * as THREE from 'three';
 import { SceneManager } from './scene/SceneManager.js';
 import { CameraController } from './scene/CameraController.js';
-import { loadModel, loadObjModel, applyMaterialToModel, createFallbackBox } from './models/ModelLoader.js';
-import { createStreamMaterial, swapTexture, updateBounds } from './materials/StreamMaterial.js';
+import { ObjectManager } from './scene/ObjectManager.js';
+import { DragControls } from './scene/DragControls.js';
+import { createStreamMaterial, swapTexture } from './materials/StreamMaterial.js';
 import { StreamManager } from './streams/StreamManager.js';
 import { WorkerClient } from './api/WorkerClient.js';
 import { StreamPanel } from './ui/StreamPanel.js';
-import { ModelSwitcher } from './ui/ModelSwitcher.js';
-
-const MODELS = [
-  { name: 'Box',       url: null },
-  { name: 'Sphere',    url: null, geo: 'sphere' },
-  { name: 'Torus',     url: null, geo: 'torus' },
-  { name: 'Raspberry', url: '/models/raspberry_high.obj' },
-  { name: 'Cone',      url: null, geo: 'cone' },
-  { name: 'Tower',     url: null, geo: 'tower' },
-  { name: 'Molecule',  url: null, geo: 'molecule' },
-];
 
 async function main() {
   const container = document.getElementById('canvas-container');
@@ -42,43 +32,43 @@ async function main() {
   ctx.fillStyle = '#222'; ctx.fillRect(0, 0, 2, 2);
   const fallbackTexture = new THREE.CanvasTexture(fallbackCanvas);
 
-  // ── Model loading ─────────────────────────────────────────────────────────
-  let currentModel = null;
-  let streamMaterial = null;
+  // ── Base material (used as template for cloning) ────────────────────────
+  const defaultBox = new THREE.Box3(
+    new THREE.Vector3(-1, -1, -1),
+    new THREE.Vector3(1, 1, 1)
+  );
+  const streamMaterial = createStreamMaterial(fallbackTexture, defaultBox);
 
-  async function loadAndApplyModel(modelDef) {
-    if (currentModel) scene.scene.remove(currentModel);
+  // ── Object manager + drag controls ──────────────────────────────────────
+  const objectManager = new ObjectManager(scene.scene);
+  const dragControls = new DragControls(
+    scene.camera,
+    scene.renderer.domElement,
+    objectManager,
+    camera.controls
+  );
 
-    let model, boundingBox;
-    if (modelDef.url) {
-      try {
-        const isObj = modelDef.url.toLowerCase().endsWith('.obj');
-        ({ model, boundingBox } = isObj
-          ? await loadObjModel(modelDef.url)
-          : await loadModel(modelDef.url));
-      } catch {
-        ({ model, boundingBox } = createFallbackBox());
-      }
-    } else {
-      ({ model, boundingBox } = createProceduralModel(modelDef));
-    }
+  dragControls.onSpawn((type, position) => {
+    objectManager.spawn(type, position, streamMaterial).catch((err) => {
+      console.error('Failed to spawn:', err);
+    });
+  });
 
-    if (!streamMaterial) {
-      streamMaterial = createStreamMaterial(fallbackTexture, boundingBox);
-    } else {
-      updateBounds(streamMaterial, boundingBox);
-    }
+  // ── Shape palette ───────────────────────────────────────────────────────
+  const shapeBtns = document.querySelectorAll('.shape-btn');
+  shapeBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      shapeBtns.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      dragControls.setBrush(btn.dataset.shape);
+    });
+  });
 
-    applyMaterialToModel(model, streamMaterial);
-    scene.scene.add(model);
-    currentModel = model;
-  }
+  document.getElementById('clear-all').addEventListener('click', () => {
+    objectManager.removeAll();
+  });
 
-  // ── Model switcher ────────────────────────────────────────────────────────
-  const switcher = new ModelSwitcher(MODELS);
-  switcher.onChange((modelDef) => loadAndApplyModel(modelDef));
-
-  // ── Animation controls ──────────────────────────────────────────────────────
+  // ── Animation controls ──────────────────────────────────────────────────
   const anim = { playing: true, speedX: 0, speedY: 1, speedZ: 0 };
 
   document.getElementById('anim-playpause').addEventListener('click', (e) => {
@@ -95,10 +85,12 @@ async function main() {
   }
 
   scene.onUpdate((dt) => {
-    if (anim.playing && currentModel) {
-      currentModel.rotation.x += dt * anim.speedX;
-      currentModel.rotation.y += dt * anim.speedY;
-      currentModel.rotation.z += dt * anim.speedZ;
+    if (anim.playing) {
+      for (const obj of objectManager.getAll()) {
+        obj.rotation.x += dt * anim.speedX;
+        obj.rotation.y += dt * anim.speedY;
+        obj.rotation.z += dt * anim.speedZ;
+      }
     }
   });
 
@@ -106,19 +98,31 @@ async function main() {
   document.getElementById('tile-scale').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     document.getElementById('tile-scale-val').textContent = v.toFixed(2);
-    if (streamMaterial) streamMaterial.uniforms.uTileScale.value = v;
+    streamMaterial.uniforms.uTileScale.value = v;
+    for (const mat of objectManager.getMaterials()) {
+      mat.uniforms.uTileScale.value = v;
+    }
   });
   document.getElementById('blend-sharp').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     document.getElementById('blend-sharp-val').textContent = v.toFixed(1);
-    if (streamMaterial) streamMaterial.uniforms.uBlendSharp.value = v;
+    streamMaterial.uniforms.uBlendSharp.value = v;
+    for (const mat of objectManager.getMaterials()) {
+      mat.uniforms.uBlendSharp.value = v;
+    }
   });
+
   scene.onUpdate((dt) => {
-    if (streamMaterial) {
-      streamMaterial.uniforms.uTime.value += dt;
-      // VideoTexture in a ShaderMaterial doesn't auto-update — force it every frame
-      const tex = streamMaterial.uniforms.uVideoTexture.value;
-      if (tex?.isVideoTexture) tex.needsUpdate = true;
+    // Update time and video texture for base material
+    streamMaterial.uniforms.uTime.value += dt;
+    const tex = streamMaterial.uniforms.uVideoTexture.value;
+    if (tex?.isVideoTexture) tex.needsUpdate = true;
+
+    // Update time for all cloned materials
+    for (const mat of objectManager.getMaterials()) {
+      mat.uniforms.uTime.value = streamMaterial.uniforms.uTime.value;
+      const t = mat.uniforms.uVideoTexture.value;
+      if (t?.isVideoTexture) t.needsUpdate = true;
     }
   });
 
@@ -128,7 +132,10 @@ async function main() {
   const streamPanel = new StreamPanel();
 
   streamManager.onTextureChange((texture) => {
-    if (streamMaterial) swapTexture(streamMaterial, texture);
+    swapTexture(streamMaterial, texture);
+    for (const mat of objectManager.getMaterials()) {
+      swapTexture(mat, texture);
+    }
   });
 
   streamManager.onStreamsUpdate((streams) => {
@@ -142,56 +149,9 @@ async function main() {
   });
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  await loadAndApplyModel(MODELS[0]);
   streamManager.startPolling();
   scene.start();
   loadingOverlay.classList.add('hidden');
-}
-
-function createProceduralModel(modelDef) {
-  const placeholder = new THREE.MeshStandardMaterial();
-  const group = new THREE.Group();
-
-  if (modelDef.geo === 'sphere') {
-    group.add(new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), placeholder));
-  } else if (modelDef.geo === 'torus') {
-    group.add(new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.35, 64, 64), placeholder));
-  } else if (modelDef.geo === 'cone') {
-    group.add(new THREE.Mesh(new THREE.ConeGeometry(1, 2, 64), placeholder));
-  } else if (modelDef.geo === 'tower') {
-    // Stacked tower: box base, cylinder middle, cone roof
-    const base = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.6), placeholder);
-    base.position.y = -0.6;
-    group.add(base);
-    const mid = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 1.2, 32), placeholder);
-    mid.position.y = 0.4;
-    group.add(mid);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.85, 0.8, 32), placeholder);
-    roof.position.y = 1.4;
-    group.add(roof);
-  } else if (modelDef.geo === 'molecule') {
-    // Central sphere with 6 smaller spheres on axes, connected by thin cylinders
-    group.add(new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 16), placeholder));
-    const armDirs = [
-      [1, 0, 0], [-1, 0, 0],
-      [0, 1, 0], [0, -1, 0],
-      [0, 0, 1], [0, 0, -1],
-    ];
-    for (const [x, y, z] of armDirs) {
-      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.25, 24, 12), placeholder);
-      orb.position.set(x * 1.1, y * 1.1, z * 1.1);
-      group.add(orb);
-      const bond = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.85, 8), placeholder);
-      bond.position.set(x * 0.55, y * 0.55, z * 0.55);
-      if (x !== 0) bond.rotation.z = Math.PI / 2;
-      if (z !== 0) bond.rotation.x = Math.PI / 2;
-      group.add(bond);
-    }
-  } else {
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), placeholder));
-  }
-
-  return { model: group, boundingBox: new THREE.Box3().setFromObject(group) };
 }
 
 main().catch((err) => {
