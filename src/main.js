@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SceneManager } from './scene/SceneManager.js';
 import { CameraController } from './scene/CameraController.js';
-import { loadModel, applyMaterialToModel, createFallbackBox } from './models/ModelLoader.js';
+import { loadModel, loadObjModel, applyMaterialToModel, createFallbackBox } from './models/ModelLoader.js';
 import { createStreamMaterial, swapTexture, updateBounds } from './materials/StreamMaterial.js';
 import { StreamManager } from './streams/StreamManager.js';
 import { WorkerClient } from './api/WorkerClient.js';
@@ -9,10 +9,10 @@ import { StreamPanel } from './ui/StreamPanel.js';
 import { ModelSwitcher } from './ui/ModelSwitcher.js';
 
 const MODELS = [
-  { name: 'Box',    url: null },
-  { name: 'Sphere', url: null, geo: 'sphere' },
-  { name: 'Torus',  url: null, geo: 'torus' },
-  // { name: 'Custom', url: '/models/my-model.glb' },
+  { name: 'Box',       url: null },
+  { name: 'Sphere',    url: null, geo: 'sphere' },
+  { name: 'Torus',     url: null, geo: 'torus' },
+  { name: 'Raspberry', url: '/models/raspberry_high.obj' },
 ];
 
 async function main() {
@@ -42,14 +42,21 @@ async function main() {
   // ── Model loading ─────────────────────────────────────────────────────────
   let currentModel = null;
   let streamMaterial = null;
+  let rotationSpeed = 0.3; // radians per second
 
   async function loadAndApplyModel(modelDef) {
     if (currentModel) scene.scene.remove(currentModel);
 
     let model, boundingBox;
     if (modelDef.url) {
-      try { ({ model, boundingBox } = await loadModel(modelDef.url)); }
-      catch { ({ model, boundingBox } = createFallbackBox()); }
+      try {
+        const isObj = modelDef.url.toLowerCase().endsWith('.obj');
+        ({ model, boundingBox } = isObj
+          ? await loadObjModel(modelDef.url)
+          : await loadModel(modelDef.url));
+      } catch {
+        ({ model, boundingBox } = createFallbackBox());
+      }
     } else {
       ({ model, boundingBox } = createProceduralModel(modelDef));
     }
@@ -80,7 +87,12 @@ async function main() {
     document.getElementById('blend-sharp-val').textContent = v.toFixed(1);
     if (streamMaterial) streamMaterial.uniforms.uBlendSharp.value = v;
   });
+  document.getElementById('rotation-speed').addEventListener('input', (e) => {
+    rotationSpeed = parseFloat(e.target.value);
+    document.getElementById('rotation-speed-val').textContent = rotationSpeed.toFixed(2);
+  });
   scene.onUpdate((dt) => {
+    if (currentModel) currentModel.rotation.y += rotationSpeed * dt;
     if (streamMaterial) {
       streamMaterial.uniforms.uTime.value += dt;
       // VideoTexture in a ShaderMaterial doesn't auto-update — force it every frame

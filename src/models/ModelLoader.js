@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 
 const loader = new GLTFLoader();
+const objLoader = new OBJLoader();
 
 /**
  * Load a GLTF/GLB model, compute its world-space bounding box, centre it at
@@ -50,6 +52,35 @@ export function applyMaterialToModel(model, material) {
     if (child.isMesh) {
       child.material = material;
     }
+  });
+}
+
+/**
+ * Load an OBJ model, centre it and normalise its scale to fit a unit cube.
+ */
+export function loadObjModel(url) {
+  return new Promise((resolve, reject) => {
+    objLoader.load(
+      url,
+      (group) => {
+        const box = new THREE.Box3().setFromObject(group);
+        const center = new THREE.Vector3();
+        const size = new THREE.Vector3();
+        box.getCenter(center);
+        box.getSize(size);
+
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = maxDim > 0 ? 2.0 / maxDim : 1;
+        group.position.sub(center.multiplyScalar(scale));
+        group.scale.setScalar(scale);
+        group.updateMatrixWorld(true);
+
+        const boundingBox = new THREE.Box3().setFromObject(group);
+        resolve({ model: group, boundingBox });
+      },
+      undefined,
+      reject
+    );
   });
 }
 
