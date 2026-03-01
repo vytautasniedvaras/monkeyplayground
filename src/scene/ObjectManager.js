@@ -16,6 +16,8 @@ export class ObjectManager {
   constructor(scene) {
     this._scene = scene;
     this._objects = []; // { mesh: THREE.Object3D, type: string }
+    this._geometryCache = new Map(); // type → { model, boundingBox }
+    this._modelCache = new Map();    // url → Promise<{ model, boundingBox }>
   }
 
   /**
@@ -26,9 +28,8 @@ export class ObjectManager {
    * @returns {Promise<THREE.Object3D>}
    */
   async spawn(type, position, baseMaterial) {
-    const { model, boundingBox } = MODEL_URLS[type]
-      ? await this._loadObjModel(MODEL_URLS[type])
-      : this._createGeometry(type);
+    const { model: template, boundingBox } = await this._getTemplate(type);
+    const model = template.clone();
     const material = baseMaterial.clone();
 
     // Copy uniform values from base (clone doesn't deep-copy uniform objects)
@@ -83,6 +84,20 @@ export class ObjectManager {
     return this._objects
       .map((o) => o.mesh.userData.streamMaterial)
       .filter(Boolean);
+  }
+
+  async _getTemplate(type) {
+    if (MODEL_URLS[type]) {
+      const url = MODEL_URLS[type];
+      if (!this._modelCache.has(url)) {
+        this._modelCache.set(url, this._loadObjModel(url));
+      }
+      return this._modelCache.get(url);
+    }
+    if (!this._geometryCache.has(type)) {
+      this._geometryCache.set(type, this._createGeometry(type));
+    }
+    return this._geometryCache.get(type);
   }
 
   _createGeometry(type) {
@@ -142,8 +157,8 @@ export class ObjectManager {
     return new Promise((resolve, reject) => {
       objLoader.load(
         url,
-        (group) => {
-          const box = new THREE.Box3().setFromObject(group);
+        (loaded) => {
+          const box = new THREE.Box3().setFromObject(loaded);
           const center = new THREE.Vector3();
           const size = new THREE.Vector3();
           box.getCenter(center);
@@ -151,8 +166,13 @@ export class ObjectManager {
 
           const maxDim = Math.max(size.x, size.y, size.z);
           const scale = maxDim > 0 ? 2.0 / maxDim : 1;
-          group.position.sub(center.multiplyScalar(scale));
-          group.scale.setScalar(scale);
+          loaded.position.sub(center.multiplyScalar(scale));
+          loaded.scale.setScalar(scale);
+
+          // Wrap in a group so centering offset is on the inner object,
+          // keeping the root group's position free for spawn placement
+          const group = new THREE.Group();
+          group.add(loaded);
           group.updateMatrixWorld(true);
 
           const boundingBox = new THREE.Box3().setFromObject(group);
