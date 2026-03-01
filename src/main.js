@@ -45,7 +45,6 @@ async function main() {
   // ── Model loading ─────────────────────────────────────────────────────────
   let currentModel = null;
   let streamMaterial = null;
-  let rotationSpeed = 0.3; // radians per second
 
   async function loadAndApplyModel(modelDef) {
     if (currentModel) scene.scene.remove(currentModel);
@@ -80,37 +79,26 @@ async function main() {
   switcher.onChange((modelDef) => loadAndApplyModel(modelDef));
 
   // ── Animation controls ──────────────────────────────────────────────────────
-  const anim = { playing: true, speed: 1.0, direction: 1, axis: 'y' };
+  const anim = { playing: true, speedX: 0, speedY: 1, speedZ: 0 };
 
   document.getElementById('anim-playpause').addEventListener('click', (e) => {
     anim.playing = !anim.playing;
     e.currentTarget.textContent = anim.playing ? '⏸' : '▶';
   });
 
-  document.getElementById('anim-direction').addEventListener('click', (e) => {
-    anim.direction *= -1;
-    e.currentTarget.textContent = anim.direction === 1 ? 'CW' : 'CCW';
-  });
-
-  document.getElementById('anim-speed').addEventListener('input', (e) => {
-    anim.speed = parseFloat(e.target.value);
-    document.getElementById('anim-speed-val').textContent = anim.speed.toFixed(1);
-  });
-
-  document.querySelectorAll('.axis-buttons .btn-icon').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.axis-buttons .btn-icon').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      anim.axis = btn.dataset.axis;
+  for (const axis of ['x', 'y', 'z']) {
+    document.getElementById(`anim-speed-${axis}`).addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      anim[`speed${axis.toUpperCase()}`] = v;
+      document.getElementById(`anim-speed-${axis}-val`).textContent = v.toFixed(1);
     });
-  });
+  }
 
   scene.onUpdate((dt) => {
     if (anim.playing && currentModel) {
-      const angle = dt * anim.speed * anim.direction;
-      if (anim.axis === 'x') currentModel.rotation.x += angle;
-      else if (anim.axis === 'z') currentModel.rotation.z += angle;
-      else currentModel.rotation.y += angle;
+      currentModel.rotation.x += dt * anim.speedX;
+      currentModel.rotation.y += dt * anim.speedY;
+      currentModel.rotation.z += dt * anim.speedZ;
     }
   });
 
@@ -125,12 +113,7 @@ async function main() {
     document.getElementById('blend-sharp-val').textContent = v.toFixed(1);
     if (streamMaterial) streamMaterial.uniforms.uBlendSharp.value = v;
   });
-  document.getElementById('rotation-speed').addEventListener('input', (e) => {
-    rotationSpeed = parseFloat(e.target.value);
-    document.getElementById('rotation-speed-val').textContent = rotationSpeed.toFixed(2);
-  });
   scene.onUpdate((dt) => {
-    if (currentModel) currentModel.rotation.y += rotationSpeed * dt;
     if (streamMaterial) {
       streamMaterial.uniforms.uTime.value += dt;
       // VideoTexture in a ShaderMaterial doesn't auto-update — force it every frame
