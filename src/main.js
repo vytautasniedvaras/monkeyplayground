@@ -12,6 +12,7 @@ const MODELS = [
   { name: 'Box',    url: null },
   { name: 'Sphere', url: null, geo: 'sphere' },
   { name: 'Torus',  url: null, geo: 'torus' },
+  { name: 'Cone',   url: null, geo: 'cone' },
   // { name: 'Custom', url: '/models/my-model.glb' },
 ];
 
@@ -119,6 +120,7 @@ function createProceduralModel(modelDef) {
   let geometry;
   if (modelDef.geo === 'sphere') geometry = new THREE.SphereGeometry(1, 64, 32);
   else if (modelDef.geo === 'torus') geometry = new THREE.TorusGeometry(0.8, 0.35, 64, 64);
+  else if (modelDef.geo === 'cone') geometry = new THREE.ConeGeometry(1, 2, 64);
   else geometry = new THREE.BoxGeometry(2, 2, 2);
   const group = new THREE.Group();
   group.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial()));
