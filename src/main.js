@@ -79,6 +79,41 @@ async function main() {
   const switcher = new ModelSwitcher(MODELS);
   switcher.onChange((modelDef) => loadAndApplyModel(modelDef));
 
+  // ── Animation controls ──────────────────────────────────────────────────────
+  const anim = { playing: true, speed: 1.0, direction: 1, axis: 'y' };
+
+  document.getElementById('anim-playpause').addEventListener('click', (e) => {
+    anim.playing = !anim.playing;
+    e.currentTarget.textContent = anim.playing ? '⏸' : '▶';
+  });
+
+  document.getElementById('anim-direction').addEventListener('click', (e) => {
+    anim.direction *= -1;
+    e.currentTarget.textContent = anim.direction === 1 ? 'CW' : 'CCW';
+  });
+
+  document.getElementById('anim-speed').addEventListener('input', (e) => {
+    anim.speed = parseFloat(e.target.value);
+    document.getElementById('anim-speed-val').textContent = anim.speed.toFixed(1);
+  });
+
+  document.querySelectorAll('.axis-buttons .btn-icon').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.axis-buttons .btn-icon').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      anim.axis = btn.dataset.axis;
+    });
+  });
+
+  scene.onUpdate((dt) => {
+    if (anim.playing && currentModel) {
+      const angle = dt * anim.speed * anim.direction;
+      if (anim.axis === 'x') currentModel.rotation.x += angle;
+      else if (anim.axis === 'z') currentModel.rotation.z += angle;
+      else currentModel.rotation.y += angle;
+    }
+  });
+
   // ── Shader controls ───────────────────────────────────────────────────────
   document.getElementById('tile-scale').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);

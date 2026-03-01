@@ -168,6 +168,38 @@
       text-align: right;
     }
 
+    /* Animation controls */
+    #animation-controls {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    #animation-controls label {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .axis-buttons {
+      display: flex;
+      gap: 4px;
+    }
+
+    .axis-buttons .btn-icon {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .axis-buttons .btn-icon.active {
+      background: rgba(99,102,241,0.25);
+      border-color: rgba(99,102,241,0.5);
+      color: #a5b4fc;
+    }
+
     /* Stream list */
     #stream-list-section {
       flex: 1;
@@ -381,6 +413,27 @@
         <span>Rot Speed</span>
         <input type="range" id="rotation-speed" min="0" max="2" step="0.01" value="0.3" />
         <span class="val" id="rotation-speed-val">0.30</span>
+      </div>
+    </div>
+
+    <div id="animation-controls">
+      <label>Animation</label>
+      <div class="slider-row" style="margin-bottom: 10px;">
+        <button class="btn-icon" id="anim-playpause" style="width: 36px;">⏸</button>
+        <button class="btn-icon" id="anim-direction" style="flex-shrink: 0;">CW</button>
+      </div>
+      <div class="slider-row">
+        <span>Speed</span>
+        <input type="range" id="anim-speed" min="0.1" max="3" step="0.1" value="1.0" />
+        <span class="val" id="anim-speed-val">1.0</span>
+      </div>
+      <div class="slider-row" style="margin-top: 4px;">
+        <span>Axis</span>
+        <div class="axis-buttons">
+          <button class="btn-icon active" data-axis="y">Y</button>
+          <button class="btn-icon" data-axis="x">X</button>
+          <button class="btn-icon" data-axis="z">Z</button>
+        </div>
       </div>
     </div>
 
