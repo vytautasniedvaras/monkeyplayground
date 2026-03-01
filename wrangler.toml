@@ -1,0 +1,15 @@
+name = "stream-playground-worker"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "STREAMS_KV"
+id = "208ecd95fc6f4f2aad4acfb8ec0658a0"
+preview_id = "1d5df339b25c4db4b199f9b18d6353ca"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Set secrets via: wrangler secret put CF_ACCOUNT_ID
+# wrangler secret put CF_STREAM_TOKEN
