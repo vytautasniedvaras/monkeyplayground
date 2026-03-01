@@ -13,6 +13,8 @@ const MODELS = [
   { name: 'Sphere', url: null, geo: 'sphere' },
   { name: 'Torus',  url: null, geo: 'torus' },
   { name: 'Cone',   url: null, geo: 'cone' },
+  { name: 'Tower',  url: null, geo: 'tower' },
+  { name: 'Molecule', url: null, geo: 'molecule' },
   // { name: 'Custom', url: '/models/my-model.glb' },
 ];
 
@@ -117,13 +119,48 @@ async function main() {
 }
 
 function createProceduralModel(modelDef) {
-  let geometry;
-  if (modelDef.geo === 'sphere') geometry = new THREE.SphereGeometry(1, 64, 32);
-  else if (modelDef.geo === 'torus') geometry = new THREE.TorusGeometry(0.8, 0.35, 64, 64);
-  else if (modelDef.geo === 'cone') geometry = new THREE.ConeGeometry(1, 2, 64);
-  else geometry = new THREE.BoxGeometry(2, 2, 2);
+  const placeholder = new THREE.MeshStandardMaterial();
   const group = new THREE.Group();
-  group.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial()));
+
+  if (modelDef.geo === 'sphere') {
+    group.add(new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), placeholder));
+  } else if (modelDef.geo === 'torus') {
+    group.add(new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.35, 64, 64), placeholder));
+  } else if (modelDef.geo === 'cone') {
+    group.add(new THREE.Mesh(new THREE.ConeGeometry(1, 2, 64), placeholder));
+  } else if (modelDef.geo === 'tower') {
+    // Stacked tower: box base, cylinder middle, cone roof
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.6), placeholder);
+    base.position.y = -0.6;
+    group.add(base);
+    const mid = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 1.2, 32), placeholder);
+    mid.position.y = 0.4;
+    group.add(mid);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.85, 0.8, 32), placeholder);
+    roof.position.y = 1.4;
+    group.add(roof);
+  } else if (modelDef.geo === 'molecule') {
+    // Central sphere with 6 smaller spheres on axes, connected by thin cylinders
+    group.add(new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 16), placeholder));
+    const armDirs = [
+      [1, 0, 0], [-1, 0, 0],
+      [0, 1, 0], [0, -1, 0],
+      [0, 0, 1], [0, 0, -1],
+    ];
+    for (const [x, y, z] of armDirs) {
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(0.25, 24, 12), placeholder);
+      orb.position.set(x * 1.1, y * 1.1, z * 1.1);
+      group.add(orb);
+      const bond = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.85, 8), placeholder);
+      bond.position.set(x * 0.55, y * 0.55, z * 0.55);
+      if (x !== 0) bond.rotation.z = Math.PI / 2;
+      if (z !== 0) bond.rotation.x = Math.PI / 2;
+      group.add(bond);
+    }
+  } else {
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), placeholder));
+  }
+
   return { model: group, boundingBox: new THREE.Box3().setFromObject(group) };
 }
 
