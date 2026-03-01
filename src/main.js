@@ -29,7 +29,7 @@ async function main() {
   const fallbackCanvas = document.createElement('canvas');
   fallbackCanvas.width = 2; fallbackCanvas.height = 2;
   const ctx = fallbackCanvas.getContext('2d');
-  ctx.fillStyle = '#222'; ctx.fillRect(0, 0, 2, 2);
+  ctx.fillStyle = '#556'; ctx.fillRect(0, 0, 2, 2);
   const fallbackTexture = new THREE.CanvasTexture(fallbackCanvas);
 
   // ── Base material (used as template for cloning) ────────────────────────
@@ -66,6 +66,63 @@ async function main() {
 
   document.getElementById('clear-all').addEventListener('click', () => {
     objectManager.removeAll();
+    dragControls.deselect();
+  });
+
+  // ── Selected object controls ──────────────────────────────────────────
+  const selectedPanel = document.getElementById('selected-controls');
+  const selectedNameEl = document.getElementById('selected-name');
+  const selectedScaleSlider = document.getElementById('selected-scale');
+  const selectedScaleVal = document.getElementById('selected-scale-val');
+  const selectedPosXSlider = document.getElementById('selected-pos-x');
+  const selectedPosXVal = document.getElementById('selected-pos-x-val');
+  const selectedPosYSlider = document.getElementById('selected-pos-y');
+  const selectedPosYVal = document.getElementById('selected-pos-y-val');
+  const selectedPosZSlider = document.getElementById('selected-pos-z');
+  const selectedPosZVal = document.getElementById('selected-pos-z-val');
+
+  function updateSelectedUI(obj) {
+    if (!obj) {
+      selectedPanel.classList.remove('visible');
+      return;
+    }
+    selectedPanel.classList.add('visible');
+    selectedNameEl.textContent = obj.userData.shapeType || 'object';
+    selectedScaleSlider.value = obj.scale.x;
+    selectedScaleVal.textContent = obj.scale.x.toFixed(2);
+    selectedPosXSlider.value = obj.position.x;
+    selectedPosXVal.textContent = obj.position.x.toFixed(1);
+    selectedPosYSlider.value = obj.position.y;
+    selectedPosYVal.textContent = obj.position.y.toFixed(1);
+    selectedPosZSlider.value = obj.position.z;
+    selectedPosZVal.textContent = obj.position.z.toFixed(1);
+  }
+
+  dragControls.onSelect((obj) => updateSelectedUI(obj));
+
+  selectedScaleSlider.addEventListener('input', (e) => {
+    const obj = dragControls.getSelected();
+    if (!obj) return;
+    const v = parseFloat(e.target.value);
+    obj.scale.setScalar(v);
+    selectedScaleVal.textContent = v.toFixed(2);
+  });
+
+  for (const axis of ['x', 'y', 'z']) {
+    document.getElementById(`selected-pos-${axis}`).addEventListener('input', (e) => {
+      const obj = dragControls.getSelected();
+      if (!obj) return;
+      const v = parseFloat(e.target.value);
+      obj.position[axis] = v;
+      document.getElementById(`selected-pos-${axis}-val`).textContent = v.toFixed(1);
+    });
+  }
+
+  document.getElementById('delete-selected').addEventListener('click', () => {
+    const obj = dragControls.getSelected();
+    if (!obj) return;
+    objectManager.remove(obj);
+    dragControls.deselect();
   });
 
   // ── Animation controls ──────────────────────────────────────────────────
