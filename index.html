@@ -274,6 +274,24 @@
     }
 
 
+    #stream-url {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      font-size: 24px;
+      color: #666;
+      z-index: 50;
+    }
+
+    #stream-url a {
+      color: #6366f1;
+      text-decoration: none;
+    }
+
+    #stream-url a:hover {
+      text-decoration: underline;
+    }
+
     /* Loading overlay */
     #loading-overlay {
       position: fixed;
@@ -327,6 +345,8 @@
   </div>
 
   <div id="canvas-container"></div>
+
+  <div id="stream-url">streaming at: <a href="https://stream-playground-blue.vercel.app" target="_blank">https://stream-playground-blue.vercel.app</a></div>
 
   <button id="panel-toggle" title="Toggle panel">◀</button>
 
